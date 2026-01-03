@@ -86,7 +86,7 @@ type Repo struct {
 func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool, tx: nil}
 }
-func (r *Repo) RepoWithTX(tx pgx.Tx) *Repo {
+func (r *Repo) repoWithTX(tx pgx.Tx) *Repo {
 	return &Repo{pool: r.pool, tx: tx}
 }
 
@@ -97,7 +97,7 @@ func (r *Repo) executor() dbExecutor {
 	return r.tx
 }
 
-func (r *Repo) GetBaseOrderOnId(ctx context.Context, OrderUId string) (*models.Order, error) {
+func (r *Repo) getBaseOrderOnId(ctx context.Context, OrderUId string) (*models.Order, error) {
 	var order models.Order
 	order.OrderUId = OrderUId
 	err := r.executor().QueryRow(ctx, queryBaseOrder, OrderUId).Scan(
@@ -114,7 +114,7 @@ func (r *Repo) GetBaseOrderOnId(ctx context.Context, OrderUId string) (*models.O
 	return &order, nil
 }
 
-func (r *Repo) GetDeliveryOnID(ctx context.Context, OrderUId string) (*models.Delivery, error) {
+func (r *Repo) getDeliveryOnID(ctx context.Context, OrderUId string) (*models.Delivery, error) {
 	var delivery models.Delivery
 	delivery.OrderUId = OrderUId
 
@@ -131,7 +131,7 @@ func (r *Repo) GetDeliveryOnID(ctx context.Context, OrderUId string) (*models.De
 
 }
 
-func (r *Repo) GetPaymentOnID(ctx context.Context, OrderUId string) (*models.Payment, error) {
+func (r *Repo) getPaymentOnID(ctx context.Context, OrderUId string) (*models.Payment, error) {
 	var payment models.Payment
 
 	err := r.executor().QueryRow(ctx, queryPayment, OrderUId).Scan(
@@ -147,7 +147,7 @@ func (r *Repo) GetPaymentOnID(ctx context.Context, OrderUId string) (*models.Pay
 	return &payment, nil
 }
 
-func (r *Repo) GetItemsOnID(ctx context.Context, OrderUId string) ([]models.Item, error) {
+func (r *Repo) getItemsOnID(ctx context.Context, OrderUId string) ([]models.Item, error) {
 	var items []models.Item
 
 	rows, err := r.executor().Query(ctx, queryItems, OrderUId)
@@ -184,24 +184,24 @@ func (r *Repo) GetFullOrderOnId(ctx context.Context, OrderUId string) (*models.O
 	}
 	defer tx.Rollback(ctx)
 
-	txRepo := r.RepoWithTX(tx)
+	txRepo := r.repoWithTX(tx)
 
-	order, err := txRepo.GetBaseOrderOnId(ctx, OrderUId)
+	order, err := txRepo.getBaseOrderOnId(ctx, OrderUId)
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := txRepo.GetItemsOnID(ctx, OrderUId)
+	items, err := txRepo.getItemsOnID(ctx, OrderUId)
 	if err != nil {
 		return nil, err
 	}
 
-	delivery, err := txRepo.GetDeliveryOnID(ctx, OrderUId)
+	delivery, err := txRepo.getDeliveryOnID(ctx, OrderUId)
 	if err != nil {
 		return nil, err
 	}
 
-	payment, err := txRepo.GetPaymentOnID(ctx, OrderUId)
+	payment, err := txRepo.getPaymentOnID(ctx, OrderUId)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (r *Repo) GetFullOrderOnId(ctx context.Context, OrderUId string) (*models.O
 
 }
 
-func (r *Repo) CreateDelivery(ctx context.Context, delivery *models.Delivery) error {
+func (r *Repo) createDelivery(ctx context.Context, delivery *models.Delivery) error {
 	_, err := r.executor().Exec(ctx, queryInsertDelivery, delivery.OrderUId, delivery.Name, delivery.Phone, delivery.Zip, delivery.City, delivery.Address, delivery.Region, delivery.Email)
 	if err != nil {
 		return err
@@ -225,7 +225,7 @@ func (r *Repo) CreateDelivery(ctx context.Context, delivery *models.Delivery) er
 	return nil
 }
 
-func (r *Repo) CreatePayment(ctx context.Context, payment *models.Payment) error {
+func (r *Repo) createPayment(ctx context.Context, payment *models.Payment) error {
 	_, err := r.executor().Exec(ctx, queryInsertPayment, payment.OrderId, payment.Transaction, payment.RequestId, payment.Currency, payment.Provider, payment.Amount, payment.PaymentDt, payment.Bank, payment.DeliveryCost, payment.GoodsTotal, payment.CustomFee)
 	if err != nil {
 		return err
@@ -233,7 +233,7 @@ func (r *Repo) CreatePayment(ctx context.Context, payment *models.Payment) error
 	return nil
 }
 
-func (r *Repo) CreateItem(ctx context.Context, item *models.Item) error {
+func (r *Repo) createItem(ctx context.Context, item *models.Item) error {
 	_, err := r.executor().Exec(ctx, queryInsertItem, item.OrderUId, item.ChrtId, item.TrackNumber, item.Price, item.RID, item.Name, item.Sale, item.Size, item.TotalPrice, item.NmId, item.Brand, item.Status)
 	if err != nil {
 		return err
@@ -241,7 +241,7 @@ func (r *Repo) CreateItem(ctx context.Context, item *models.Item) error {
 	return nil
 }
 
-func (r *Repo) CreateBaseOrder(ctx context.Context, order *models.Order) error {
+func (r *Repo) createBaseOrder(ctx context.Context, order *models.Order) error {
 	_, err := r.executor().Exec(ctx, queryInsertOrder, order.OrderUId, order.TrackNumber, order.Entry, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.SmId, order.DateCreated, order.OofShard)
 	if err != nil {
 		return err
@@ -256,25 +256,25 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 	}
 	defer tx.Rollback(ctx)
 
-	txRepo := r.RepoWithTX(tx)
+	txRepo := r.repoWithTX(tx)
 
-	err = txRepo.CreateBaseOrder(ctx, order)
+	err = txRepo.createBaseOrder(ctx, order)
 	if err != nil {
 		return err
 	}
 
-	err = txRepo.CreatePayment(ctx, &order.Payment)
+	err = txRepo.createPayment(ctx, &order.Payment)
 	if err != nil {
 		return err
 	}
 
-	err = txRepo.CreateDelivery(ctx, &order.Delivery)
+	err = txRepo.createDelivery(ctx, &order.Delivery)
 	if err != nil {
 		return err
 	}
 
 	for _, item := range order.Items {
-		err = txRepo.CreateItem(ctx, &item)
+		err = txRepo.createItem(ctx, &item)
 		if err != nil {
 			return err
 		}
@@ -285,4 +285,28 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 	}
 
 	return nil
+}
+
+const queryIDs = `SELECT o.order_uid FROM orders AS o  ORDER BY date_created DESC LIMIT $1`
+
+func (r *Repo) GetSomeIDs(ctx context.Context, amount uint64) ([]string, error) {
+	result := make([]string, 0, amount)
+	rows, err := r.executor().Query(ctx, queryIDs, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, id)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return result, nil
 }
