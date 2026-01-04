@@ -289,7 +289,7 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 
 const queryIDs = `SELECT o.order_uid FROM orders AS o  ORDER BY date_created DESC LIMIT $1`
 
-func (r *Repo) GetSomeIDs(ctx context.Context, amount uint64) ([]string, error) {
+func (r *Repo) GetRecentIDs(ctx context.Context, amount uint64) ([]string, error) {
 	result := make([]string, 0, amount)
 	rows, err := r.executor().Query(ctx, queryIDs, amount)
 	if err != nil {
