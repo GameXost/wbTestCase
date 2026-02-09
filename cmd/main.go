@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	cache "github.com/GameXost/wbTestCase/cache"
 	"github.com/GameXost/wbTestCase/config"
 	repository "github.com/GameXost/wbTestCase/internal/repository"
@@ -64,13 +65,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create kafka consumer: %v", err)
 	}
-
+	consumerErrs := make(chan error, 1)
 	go func() {
-		if err = consumer.Start(ctx); err != nil {
-			log.Printf("error in kafka consumer: %v", err)
-		}
+		log.Println("kafka consumer started")
+		consumerErrs <- consumer.Start(ctx)
 	}()
-	log.Println("kafka consumer started")
 
 	router := SetupRouter(orderServer)
 
@@ -88,6 +87,11 @@ func main() {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	select {
+
+	case err = <-consumerErrs:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			log.Fatalf("kafka died - critical error: %v", err)
+		}
 	case err = <-serverErrors:
 		log.Fatalf("server error: %v", err)
 	case sig := <-shutdown:
