@@ -2,11 +2,12 @@ package cache
 
 import (
 	"github.com/GameXost/wbTestCase/models"
+	"log"
 	"sync"
 )
 
 type Cache struct {
-	mu       sync.RWMutex
+	mu       sync.Mutex
 	data     map[string]*Node
 	capacity uint64
 	size     uint64
@@ -23,7 +24,7 @@ type Node struct {
 
 func NewCache(capacity uint64) *Cache {
 	return &Cache{
-		data:     make(map[string]*Node),
+		data:     make(map[string]*Node, capacity),
 		capacity: capacity,
 	}
 }
@@ -33,8 +34,10 @@ func (c *Cache) Get(key string) (*models.Order, bool) {
 	defer c.mu.Unlock()
 	node, has := c.data[key]
 	if !has {
+		log.Println("cache miss")
 		return nil, false
 	}
+	log.Println("cache hit")
 	c.moveToTop(node)
 	return node.order, true
 }

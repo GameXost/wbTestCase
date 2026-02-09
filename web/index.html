@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Service</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        #result {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 4px;
+            background: #f9f9f9;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .error {
+            color: #d00;
+        }
+
+        .empty {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+<h1>Order Lookup</h1>
+
+<div class="search-box">
+    <input
+            type="text"
+            id="orderInput"
+            placeholder="Enter order UID"
+            autocomplete="off"
+    >
+    <button onclick="searchOrder()">Search</button>
+</div>
+
+<div id="result" class="empty">Result will be displayed here...</div>
+
+<script>
+    const input = document.getElementById('orderInput');
+    const result = document.getElementById('result');
+
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchOrder();
+    });
+
+    async function searchOrder() {
+        const orderUid = input.value.trim();
+
+        if (!orderUid) {
+            result.className = 'error';
+            result.textContent = 'Please enter Order UID';
+            return;
+        }
+
+        result.className = '';
+        result.textContent = 'Loading...';
+
+        try {
+            const response = await fetch(`/order/${orderUid}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            result.textContent = JSON.stringify(data, null, 2);
+
+        } catch (error) {
+            result.className = 'error';
+            result.textContent = `Error: ${error.message}`;
+        }
+    }
+</script>
+</body>
+</html>

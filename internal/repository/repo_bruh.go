@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -69,7 +71,7 @@ const (
 	queryInsertOrder = `
 						INSERT INTO orders (order_uid, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
 						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-`
+						ON CONFLICT (order_uid) DO NOTHING`
 )
 
 type dbExecutor interface {
@@ -108,6 +110,9 @@ func (r *Repo) getBaseOrderOnId(ctx context.Context, OrderUId string) (*models.O
 		&order.DateCreated, &order.OofShard,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errHandle.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -241,12 +246,12 @@ func (r *Repo) createItem(ctx context.Context, item *models.Item) error {
 	return nil
 }
 
-func (r *Repo) createBaseOrder(ctx context.Context, order *models.Order) error {
-	_, err := r.executor().Exec(ctx, queryInsertOrder, order.OrderUId, order.TrackNumber, order.Entry, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.SmId, order.DateCreated, order.OofShard)
+func (r *Repo) createBaseOrder(ctx context.Context, order *models.Order) (bool, error) {
+	tag, err := r.executor().Exec(ctx, queryInsertOrder, order.OrderUId, order.TrackNumber, order.Entry, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.SmId, order.DateCreated, order.OofShard)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return tag.RowsAffected() > 0, nil
 }
 
 func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
@@ -256,11 +261,14 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// ненавижу JOIN :3
 	txRepo := r.repoWithTX(tx)
-
-	err = txRepo.createBaseOrder(ctx, order)
+	isNewOrder, err := txRepo.createBaseOrder(ctx, order)
 	if err != nil {
 		return err
+	}
+	if !isNewOrder {
+		return nil
 	}
 
 	err = txRepo.createPayment(ctx, &order.Payment)
