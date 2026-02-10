@@ -42,7 +42,6 @@ func (c *Cache) Get(key string) (*models.Order, bool) {
 	return node.order, true
 }
 
-// нужно проверить, есть ли там значение, если есть, то поднять вверх также
 func (c *Cache) Set(order *models.Order) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

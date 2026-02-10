@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var count = 100
+
 type Producer struct {
 	client *kgo.Client
 	topic  string
@@ -125,7 +127,6 @@ func main() {
 
 	log.Println("Producer started sending messages...")
 
-	count := 100000
 	for i := 1; i <= count; i++ {
 		order := generateOrder()
 
