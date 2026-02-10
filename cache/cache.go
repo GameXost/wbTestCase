@@ -2,7 +2,7 @@ package cache
 
 import (
 	"github.com/GameXost/wbTestCase/models"
-	"log"
+	"github.com/GameXost/wbTestCase/prometheus/metrics"
 	"sync"
 )
 
@@ -34,10 +34,12 @@ func (c *Cache) Get(key string) (*models.Order, bool) {
 	defer c.mu.Unlock()
 	node, has := c.data[key]
 	if !has {
-		log.Println("cache miss")
+		//log.Println("cache miss")
+		metrics.CacheMisses.Inc()
 		return nil, false
 	}
-	log.Println("cache hit")
+	//log.Println("cache hit")
+	metrics.CacheHits.Inc()
 	c.moveToTop(node)
 	return node.order, true
 }

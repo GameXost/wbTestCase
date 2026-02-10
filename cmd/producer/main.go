@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/GameXost/wbTestCase/internal/generator"
 	"github.com/GameXost/wbTestCase/models"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
-	"time"
 )
 
-var count = 100
+var count = 10000
 
 type Producer struct {
 	client *kgo.Client
@@ -38,63 +39,6 @@ func (p *Producer) Close() {
 	p.client.Close()
 }
 
-func generateOrder() *models.Order {
-	orderUID := fmt.Sprintf("order_%d_%d", time.Now().Unix(), rand.Intn(1000))
-
-	return &models.Order{
-		OrderUId:    orderUID,
-		TrackNumber: fmt.Sprintf("TRACK_%d", rand.Intn(100000)),
-		Entry:       "фыв",
-		Delivery: models.Delivery{
-			OrderUId: orderUID,
-			Name:     "TestUser " + fmt.Sprint(rand.Intn(100)),
-			Phone:    "фыв",
-			Zip:      "фывфыв",
-			City:     "окак",
-			Address:  "Проспект Мира",
-			Region:   "Вернадский",
-			Email:    "собакагмэйлру",
-		},
-		Payment: models.Payment{
-			OrderId:      orderUID,
-			Transaction:  orderUID,
-			RequestId:    "фыв",
-			Currency:     "листики",
-			Provider:     "кивиживи",
-			Amount:       888,
-			PaymentDt:    int64(time.Now().Unix()),
-			Bank:         "банка",
-			DeliveryCost: 99,
-			GoodsTotal:   123123,
-			CustomFee:    0,
-		},
-		Items: []models.Item{
-			{
-				OrderUId:    orderUID,
-				ChrtId:      int64(rand.Intn(1000000) + 1),
-				TrackNumber: fmt.Sprintf("TRACK_ITEM_%d", rand.Intn(10000)),
-				Price:       132,
-				RID:         fmt.Sprintf("rid_%d", rand.Intn(100000)),
-				Name:        "Петруччо",
-				Sale:        1,
-				Size:        "ё хабло эспаньоло",
-				TotalPrice:  111,
-				NmId:        2342,
-				Brand:       "Ё КОМО МАНЗАНАЗ",
-				Status:      202,
-			},
-		},
-		Locale:            "en",
-		InternalSignature: "",
-		CustomerId:        "13",
-		DeliveryService:   "ОКАК",
-		Shardkey:          "9",
-		SmId:              99,
-		DateCreated:       time.Now(),
-		OofShard:          "1",
-	}
-}
-
 func (p *Producer) PublishOrder(ctx context.Context, order *models.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
@@ -115,7 +59,6 @@ func (p *Producer) PublishOrder(ctx context.Context, order *models.Order) error 
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 
 	ctx := context.Background()
 	brokers := strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
@@ -128,16 +71,20 @@ func main() {
 	log.Println("Producer started sending messages...")
 
 	for i := 1; i <= count; i++ {
-		order := generateOrder()
-
+		orderUID := strconv.Itoa(rand.Int())
+		var order *models.Order
+		if rand.Intn(10) < 8 {
+			order = generator.ValidOrder(orderUID)
+		} else {
+			order = generator.InvalidOrder(orderUID)
+		}
 		if err = producer.PublishOrder(ctx, order); err != nil {
 			log.Printf("Failed to send order %s: %v", order.OrderUId, err)
 			continue
 		}
-
-		log.Printf("%d Sent order: %s", i, order.OrderUId)
+		log.Printf("order: %s", order.OrderUId)
 
 	}
 
-	log.Println("Done!")
+	log.Println("Donon")
 }

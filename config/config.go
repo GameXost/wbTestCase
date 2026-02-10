@@ -28,9 +28,10 @@ type DBConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers []string
-	Topic   string
-	Group   string
+	Brokers  []string
+	Topic    string
+	Group    string
+	DLQTopic string
 }
 
 type ServerConfig struct {
@@ -56,9 +57,10 @@ func LoadConfig() (*Config, error) {
 			PoolMaxIdleTime: getDurationEnv("DB_POOL_MAX_IDLE_TIME", 30*time.Minute),
 		},
 		Kafka: KafkaConfig{
-			Brokers: []string{getEnv("KAFKA_BROKERS", "localhost:9092")},
-			Topic:   getEnv("KAFKA_TOPIC", "orders"),
-			Group:   getEnv("KAFKA_GROUP", "order_consumers"),
+			Brokers:  []string{getEnv("KAFKA_BROKERS", "localhost:9092")},
+			Topic:    getEnv("KAFKA_TOPIC", "orders"),
+			Group:    getEnv("KAFKA_GROUP", "order_consumers"),
+			DLQTopic: getEnv("KAFKA_TOPIC_DLQ", "orders.dlq"),
 		},
 		Server: ServerConfig{
 			Port: getEnv("HTTP_PORT", "8080"),

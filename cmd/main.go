@@ -9,9 +9,12 @@ import (
 	"github.com/GameXost/wbTestCase/internal/server"
 	service "github.com/GameXost/wbTestCase/internal/service"
 	"github.com/GameXost/wbTestCase/kafka"
+	"github.com/GameXost/wbTestCase/prometheus/metrics"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"os"
@@ -20,15 +23,19 @@ import (
 	"time"
 )
 
+// повыносить из main всякую хуйню
 func main() {
+	//config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config %v", err)
 	}
 
+	//context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	//bd pool
 	poolConf, err := pgxpool.ParseConfig(cfg.DB.DSN())
 	if err != nil {
 		log.Fatalf("failed to parse config, %v", err)
@@ -50,6 +57,7 @@ func main() {
 	}
 	log.Println("postgress good")
 
+	//services
 	orderRepo := repository.NewRepo(pool)
 	orderCache := cache.NewCache(cfg.Cache.Size)
 	orderService := service.NewService(orderRepo, orderCache)
@@ -61,7 +69,9 @@ func main() {
 	} else {
 		log.Println("Cache loaded")
 	}
-	consumer, err := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.Group, orderService)
+
+	//kafka
+	consumer, err := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.Group, orderService, cfg.Kafka.DLQTopic)
 	if err != nil {
 		log.Fatalf("failed to create kafka consumer: %v", err)
 	}
@@ -71,12 +81,24 @@ func main() {
 		consumerErrs <- consumer.Start(ctx)
 	}()
 
+	//prometheus
+	prometheus.MustRegister(
+		metrics.RequestsTotal,
+		metrics.RequestsServerError,
+		metrics.RequestsBadRequest,
+		metrics.RequestsNotFound,
+		metrics.CacheHits,
+		metrics.CacheMisses,
+		metrics.RequestsSuccess,
+	)
+	//router handlers
 	router := SetupRouter(orderServer)
-
 	httpServer := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
 		Handler: router,
 	}
+
+	// error handling
 	serverErrors := make(chan error, 1)
 	go func() {
 		log.Printf("HTTP port: %s", cfg.Server.Port)
@@ -87,7 +109,6 @@ func main() {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	select {
-
 	case err = <-consumerErrs:
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Fatalf("kafka died - critical error: %v", err)
@@ -102,7 +123,9 @@ func main() {
 
 		if err = httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Printf("graceful shutdown failed: %v", err)
-			httpServer.Close()
+			if errHttp := httpServer.Close(); errHttp != nil {
+				log.Printf("closing httpServer failed: %v", errHttp)
+			}
 		}
 		log.Println("server stopped gracefully")
 	}
@@ -117,9 +140,8 @@ func SetupRouter(handler *server.Handler) *chi.Mux {
 	r.Get("/order/{order_uid}", handler.GetOrder)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
-
 	filesDir := http.Dir("web")
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +149,7 @@ func SetupRouter(handler *server.Handler) *chi.Mux {
 	})
 
 	r.Handle("/*", http.FileServer(filesDir))
+	r.Handle("/metrics", promhttp.Handler())
 
 	return r
 }

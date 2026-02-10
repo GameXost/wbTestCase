@@ -60,6 +60,8 @@ services:
       "
       sleep 10
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic orders --partitions 10 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic orders.dlq --partitions 5 --replication-factor 1
+
       echo 'Topic orders created'
       "
     restart: "no"
@@ -80,5 +82,21 @@ services:
       DB_HOST: postgres
       KAFKA_BROKERS: kafka:29092
 
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
 volumes:
   pg_data:

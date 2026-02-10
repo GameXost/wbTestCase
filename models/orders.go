@@ -3,7 +3,10 @@ package models
 import "time"
 
 type Order struct {
-	OrderUId          string    `json:"order_uid,omitempty"`
+	Payment           Payment   `json:"payment"`
+	Items             []Item    `json:"items"`
+	Delivery          Delivery  `json:"delivery"`
+	OrderUId          string    `json:"order_uid"`
 	TrackNumber       string    `json:"track_number"`
 	Entry             string    `json:"entry"`
 	Locale            string    `json:"locale"`
@@ -14,7 +17,4 @@ type Order struct {
 	SmId              int64     `json:"sm_id"`
 	DateCreated       time.Time `json:"date_created"`
 	OofShard          string    `json:"oof_shard"`
-	Payment           Payment   `json:"payment"`
-	Items             []Item    `json:"items"`
-	Delivery          Delivery  `json:"delivery"`
 }

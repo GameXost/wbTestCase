@@ -2,14 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/models"
 	"log"
 )
-
-var ()
 
 const MAX_CAPACITY = uint64(10)
 
@@ -38,9 +35,6 @@ func NewService(repo OrderRepo, cache OrderCache) *Service {
 }
 
 func (s *Service) CreateOrder(ctx context.Context, order *models.Order) error {
-	if order.OrderUId == "" {
-		return errors.New("need order_uid")
-	}
 	if err := ValidateOrder(order); err != nil {
 		log.Printf("inalid order data: %v", err)
 		return errHandle.ErrValidation
@@ -67,9 +61,9 @@ func (s *Service) GetOrder(ctx context.Context, orderUID string) (*models.Order,
 }
 
 func (s *Service) LoadCache(ctx context.Context) error {
-	ids, err1 := s.repo.GetRecentIDs(ctx, MAX_CAPACITY)
-	if err1 != nil {
-		return err1
+	ids, err := s.repo.GetRecentIDs(ctx, MAX_CAPACITY)
+	if err != nil {
+		return err
 	}
 	orders := make([]*models.Order, 0, MAX_CAPACITY)
 	for _, id := range ids {
@@ -85,80 +79,81 @@ func (s *Service) LoadCache(ctx context.Context) error {
 }
 
 func ValidateOrder(order *models.Order) error {
+
 	if order.OrderUId == "" {
-		return errors.New("order_uid is missing")
+		return errHandle.ErrOrderUIDMissing
 	}
 	if order.TrackNumber == "" {
-		return errors.New("track number is missing")
+		return errHandle.ErrTrackNumberMissing
 	}
 	if order.Entry == "" {
-		return errors.New("entry is missing")
+		return errHandle.ErrEntryMissing
 	}
 	if order.Locale == "" {
-		return errors.New("locale is missing")
+		return errHandle.ErrLocaleMissing
 	}
 	if order.CustomerId == "" {
-		return errors.New("customer id is missing")
+		return errHandle.ErrCustomerIDMissing
 	}
 	if order.DeliveryService == "" {
-		return errors.New("delivery service is missing")
+		return errHandle.ErrDeliveryServiceMissing
 	}
 	if order.Shardkey == "" {
-		return errors.New("shardkey is missing")
+		return errHandle.ErrShardkeyMissing
 	}
 	if order.SmId <= 0 {
-		return errors.New("invalid sm id")
+		return errHandle.ErrInvalidSmID
 	}
 
 	if order.Delivery.Name == "" {
-		return errors.New("delivery name is missing")
+		return errHandle.ErrDeliveryNameMissing
 	}
 	if order.Delivery.Phone == "" {
-		return errors.New("delivery phone is missing")
+		return errHandle.ErrDeliveryPhoneMissing
 	}
 	if order.Delivery.Zip == "" {
-		return errors.New("delivery ZIP is missing")
+		return errHandle.ErrDeliveryZIPMissing
 	}
 	if order.Delivery.City == "" {
-		return errors.New("delivery city is missing")
+		return errHandle.ErrDeliveryCityMissing
 	}
 	if order.Delivery.Address == "" {
-		return errors.New("delivery address is missing")
+		return errHandle.ErrDeliveryAddressMissing
 	}
 	if order.Delivery.Region == "" {
-		return errors.New("delivery region is missing")
+		return errHandle.ErrDeliveryRegionMissing
 	}
 	if order.Delivery.Email == "" {
-		return errors.New("delivery email is missing")
+		return errHandle.ErrDeliveryEmailMissing
 	}
 
 	if order.Payment.Transaction == "" {
-		return errors.New("payment transaction is missing")
+		return errHandle.ErrPaymentTransactionMissing
 	}
 	if order.Payment.RequestId == "" {
-		return errors.New("payment request id is missing")
+		return errHandle.ErrPaymentRequestMissing
 	}
 	if order.Payment.Currency == "" {
-		return errors.New("payment currency is missing")
+		return errHandle.ErrPaymentCurrencyMissing
 	}
 	if order.Payment.Provider == "" {
-		return errors.New("payment provider is missing")
+		return errHandle.ErrPaymentProviderMissing
 	}
 	if order.Payment.Amount <= 0 {
-		return errors.New("payment amount is invalid")
+		return errHandle.ErrPaymentAmountInvalid
 	}
 	if order.Payment.Bank == "" {
-		return errors.New("payment bank is missing")
+		return errHandle.ErrPaymentBankMissing
 	}
 	if order.Payment.DeliveryCost < 0 {
-		return errors.New("payment delivery cost is invalid, lower zero")
+		return errHandle.ErrPaymentDeliveryInvalid
 	}
 	if order.Payment.GoodsTotal <= 0 {
-		return errors.New("payment goods total is invalid")
+		return errHandle.ErrPaymentGoodsTotalInvalid
 	}
 
 	if len(order.Items) == 0 {
-		return errors.New("items empty")
+		return errHandle.ErrItemsEmpty
 	}
 
 	for i := range order.Items {
@@ -172,31 +167,31 @@ func ValidateOrder(order *models.Order) error {
 
 func validateItem(item *models.Item) error {
 	if item.Name == "" {
-		return fmt.Errorf("item name is missing, id %v", item.Id)
+		return fmt.Errorf("id %v %w", item.Id, errHandle.ErrItemNameMissing)
 	}
 	if item.ChrtId <= 0 {
-		return fmt.Errorf("item %s chrt id is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemChrtMissing)
 	}
 	if item.TrackNumber == "" {
-		return fmt.Errorf("item %s track number is missing", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemTrackNumberMissing)
 	}
 	if item.RID == "" {
-		return fmt.Errorf("item %s RID is missing", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemRIDMissing)
 	}
 	if item.NmId <= 0 {
-		return fmt.Errorf("item %s nm id is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemNmIdInvalid)
 	}
 	if item.Price < 0 {
-		return fmt.Errorf("item %s price is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemPriceInvalid)
 	}
 	if item.Sale < 0 {
-		return fmt.Errorf("item %s sale is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemSaleInvalid)
 	}
 	if item.TotalPrice < 0 {
-		return fmt.Errorf("item %s total price is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemTotalPriceInvalid)
 	}
 	if item.Status < 0 {
-		return fmt.Errorf("item %s status code is invalid", item.Name)
+		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrStatusCodeInvalid)
 	}
 	return nil
 }

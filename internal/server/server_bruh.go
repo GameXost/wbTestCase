@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/prometheus/metrics"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
@@ -23,26 +24,39 @@ func NewHandler(srv OrderService) *Handler {
 	return &Handler{Service: srv}
 }
 func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
+
+	metrics.RequestsTotal.Inc()
+
 	orderUID := chi.URLParam(r, "order_uid")
 	if orderUID == "" {
-		http.Error(w, "empty order_id", http.StatusBadRequest)
+		handleHTTPErr(w, errHandle.ErrOrderUIDMissing)
 		return
 	}
 	order, err := h.Service.GetOrder(r.Context(), orderUID)
 	if err != nil {
-		switch {
-		case errors.Is(err, errHandle.ErrNotFound):
-			http.Error(w, "not found", http.StatusNotFound)
-		default:
-			log.Printf("internal server error getting order: %v", err)
-			http.Error(w, "server error", http.StatusInternalServerError)
-
-		}
+		handleHTTPErr(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(order); err != nil {
 		log.Printf("failed to encode response: %v", err)
+	}
+	metrics.RequestsSuccess.Inc()
+
+}
+
+func handleHTTPErr(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errHandle.ErrNotFound):
+		metrics.RequestsNotFound.Inc()
+		http.Error(w, "not found", http.StatusNotFound)
+	case errors.Is(err, errHandle.ErrOrderUIDMissing):
+		metrics.RequestsBadRequest.Inc()
+		http.Error(w, "empty order_id", http.StatusBadRequest)
+	default:
+		log.Printf("internal server error getting order: %v", err)
+		metrics.RequestsServerError.Inc()
+		http.Error(w, "server error", http.StatusInternalServerError)
 	}
 }

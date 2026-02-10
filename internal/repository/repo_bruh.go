@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/models"
 	"github.com/jackc/pgx/v5"
@@ -130,6 +131,9 @@ func (r *Repo) getDeliveryOnID(ctx context.Context, OrderUId string) (*models.De
 		&delivery.Region, &delivery.Email,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errHandle.ErrNotFound
+		}
 		return nil, err
 	}
 	return &delivery, nil
@@ -147,6 +151,9 @@ func (r *Repo) getPaymentOnID(ctx context.Context, OrderUId string) (*models.Pay
 		&payment.GoodsTotal, &payment.CustomFee,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errHandle.ErrNotFound
+		}
 		return nil, err
 	}
 	return &payment, nil
@@ -187,35 +194,37 @@ func (r *Repo) GetFullOrderOnId(ctx context.Context, OrderUId string) (*models.O
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	txRepo := r.repoWithTX(tx)
 
 	order, err := txRepo.getBaseOrderOnId(ctx, OrderUId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting base order in repository:  %w", err)
 	}
 
 	items, err := txRepo.getItemsOnID(ctx, OrderUId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting items in repository: %w", err)
 	}
 
 	delivery, err := txRepo.getDeliveryOnID(ctx, OrderUId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting delivery in repository: %w", err)
 	}
 
 	payment, err := txRepo.getPaymentOnID(ctx, OrderUId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting payment: %w", err)
 	}
 	order.Payment = *payment
 	order.Delivery = *delivery
 	order.Items = items
 
 	if err = tx.Commit(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error transaction commit failed in repository - GetFullOrder: %w", err)
 	}
 
 	return order, nil
@@ -259,13 +268,15 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	// ненавижу JOIN :3
 	txRepo := r.repoWithTX(tx)
 	isNewOrder, err := txRepo.createBaseOrder(ctx, order)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while creating base order in repository: %w", err)
 	}
 	if !isNewOrder {
 		return nil
@@ -273,23 +284,23 @@ func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
 
 	err = txRepo.createPayment(ctx, &order.Payment)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while creating payment in repository: %w", err)
 	}
 
 	err = txRepo.createDelivery(ctx, &order.Delivery)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while creating delivery in repository: %w", err)
 	}
 
 	for _, item := range order.Items {
 		err = txRepo.createItem(ctx, &item)
 		if err != nil {
-			return err
+			return fmt.Errorf("error while creating item in repository: %w", err)
 		}
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return err
+		return fmt.Errorf("error transaction commit in repository - CreateFullOrder: %w", err)
 	}
 
 	return nil
@@ -309,12 +320,12 @@ func (r *Repo) GetRecentIDs(ctx context.Context, amount uint64) ([]string, error
 		var id string
 		err = rows.Scan(&id)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error while getting IDs in repository: %w", err)
 		}
 		result = append(result, id)
 	}
 	if rows.Err() != nil {
-		return nil, rows.Err()
+		return nil, fmt.Errorf("error in repository GetRecentIDs: %w", rows.Err())
 	}
 	return result, nil
 }
