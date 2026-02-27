@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/models"
+	"github.com/go-playground/validator/v10"
 	"log"
 )
 
-const MAX_CAPACITY = uint64(10)
+//const MAX_CAPACITY = uint64(10)
 
 type OrderRepo interface {
 	GetRecentIDs(ctx context.Context, amount uint64) ([]string, error)
@@ -60,12 +60,12 @@ func (s *Service) GetOrder(ctx context.Context, orderUID string) (*models.Order,
 	return order, nil
 }
 
-func (s *Service) LoadCache(ctx context.Context) error {
-	ids, err := s.repo.GetRecentIDs(ctx, MAX_CAPACITY)
+func (s *Service) LoadCache(ctx context.Context, cacheSize uint64) error {
+	ids, err := s.repo.GetRecentIDs(ctx, cacheSize)
 	if err != nil {
 		return err
 	}
-	orders := make([]*models.Order, 0, MAX_CAPACITY)
+	orders := make([]*models.Order, 0)
 	for _, id := range ids {
 		order, err := s.repo.GetFullOrderOnId(ctx, id)
 		if err != nil {
@@ -78,120 +78,8 @@ func (s *Service) LoadCache(ctx context.Context) error {
 	return nil
 }
 
+var validate = validator.New()
+
 func ValidateOrder(order *models.Order) error {
-
-	if order.OrderUId == "" {
-		return errHandle.ErrOrderUIDMissing
-	}
-	if order.TrackNumber == "" {
-		return errHandle.ErrTrackNumberMissing
-	}
-	if order.Entry == "" {
-		return errHandle.ErrEntryMissing
-	}
-	if order.Locale == "" {
-		return errHandle.ErrLocaleMissing
-	}
-	if order.CustomerId == "" {
-		return errHandle.ErrCustomerIDMissing
-	}
-	if order.DeliveryService == "" {
-		return errHandle.ErrDeliveryServiceMissing
-	}
-	if order.Shardkey == "" {
-		return errHandle.ErrShardkeyMissing
-	}
-	if order.SmId <= 0 {
-		return errHandle.ErrInvalidSmID
-	}
-
-	if order.Delivery.Name == "" {
-		return errHandle.ErrDeliveryNameMissing
-	}
-	if order.Delivery.Phone == "" {
-		return errHandle.ErrDeliveryPhoneMissing
-	}
-	if order.Delivery.Zip == "" {
-		return errHandle.ErrDeliveryZIPMissing
-	}
-	if order.Delivery.City == "" {
-		return errHandle.ErrDeliveryCityMissing
-	}
-	if order.Delivery.Address == "" {
-		return errHandle.ErrDeliveryAddressMissing
-	}
-	if order.Delivery.Region == "" {
-		return errHandle.ErrDeliveryRegionMissing
-	}
-	if order.Delivery.Email == "" {
-		return errHandle.ErrDeliveryEmailMissing
-	}
-
-	if order.Payment.Transaction == "" {
-		return errHandle.ErrPaymentTransactionMissing
-	}
-	if order.Payment.RequestId == "" {
-		return errHandle.ErrPaymentRequestMissing
-	}
-	if order.Payment.Currency == "" {
-		return errHandle.ErrPaymentCurrencyMissing
-	}
-	if order.Payment.Provider == "" {
-		return errHandle.ErrPaymentProviderMissing
-	}
-	if order.Payment.Amount <= 0 {
-		return errHandle.ErrPaymentAmountInvalid
-	}
-	if order.Payment.Bank == "" {
-		return errHandle.ErrPaymentBankMissing
-	}
-	if order.Payment.DeliveryCost < 0 {
-		return errHandle.ErrPaymentDeliveryInvalid
-	}
-	if order.Payment.GoodsTotal <= 0 {
-		return errHandle.ErrPaymentGoodsTotalInvalid
-	}
-
-	if len(order.Items) == 0 {
-		return errHandle.ErrItemsEmpty
-	}
-
-	for i := range order.Items {
-		if err := validateItem(&order.Items[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateItem(item *models.Item) error {
-	if item.Name == "" {
-		return fmt.Errorf("id %v %w", item.Id, errHandle.ErrItemNameMissing)
-	}
-	if item.ChrtId <= 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemChrtMissing)
-	}
-	if item.TrackNumber == "" {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemTrackNumberMissing)
-	}
-	if item.RID == "" {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemRIDMissing)
-	}
-	if item.NmId <= 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemNmIdInvalid)
-	}
-	if item.Price < 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemPriceInvalid)
-	}
-	if item.Sale < 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemSaleInvalid)
-	}
-	if item.TotalPrice < 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrItemTotalPriceInvalid)
-	}
-	if item.Status < 0 {
-		return fmt.Errorf("item: %s %w", item.Name, errHandle.ErrStatusCodeInvalid)
-	}
-	return nil
+	return validate.Struct(order)
 }

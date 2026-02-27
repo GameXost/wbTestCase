@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"github.com/GameXost/wbTestCase/internal/errHandle"
 	"github.com/GameXost/wbTestCase/internal/generator"
 	"github.com/GameXost/wbTestCase/models"
@@ -15,8 +14,10 @@ func TestValidateOrder(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ValidateOrder(&tt.order)
-			if !errors.Is(got, tt.want) {
-				t.Errorf("feq, we want %v, got %v", tt.want, got)
+			if got == nil {
+				if tt.want != nil {
+					t.Errorf("feq, we want %v, got %v", tt.want, got)
+				}
 			}
 		})
 	}

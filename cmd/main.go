@@ -64,7 +64,7 @@ func main() {
 	orderServer := server.NewHandler(orderService)
 	log.Println("initialized all layers")
 
-	if err = orderService.LoadCache(ctx); err != nil {
+	if err = orderService.LoadCache(ctx, cfg.Cache.Size); err != nil {
 		log.Printf("failed to restore cache from db: %v", err)
 	} else {
 		log.Println("Cache loaded")
