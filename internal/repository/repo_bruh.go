@@ -100,6 +100,113 @@ func (r *Repo) executor() dbExecutor {
 	return r.tx
 }
 
+func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	// ненавижу JOIN :3
+	txRepo := r.repoWithTX(tx)
+	isNewOrder, err := txRepo.createBaseOrder(ctx, order)
+	if err != nil {
+		return fmt.Errorf("error while creating base order in repository: %w", err)
+	}
+	if !isNewOrder {
+		return nil
+	}
+
+	err = txRepo.createPayment(ctx, &order.Payment)
+	if err != nil {
+		return fmt.Errorf("error while creating payment in repository: %w", err)
+	}
+
+	err = txRepo.createDelivery(ctx, &order.Delivery)
+	if err != nil {
+		return fmt.Errorf("error while creating delivery in repository: %w", err)
+	}
+
+	for _, item := range order.Items {
+		err = txRepo.createItem(ctx, &item)
+		if err != nil {
+			return fmt.Errorf("error while creating item in repository: %w", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("error transaction commit in repository - CreateFullOrder: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Repo) GetFullOrderOnId(ctx context.Context, OrderUId string) (*models.Order, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	txRepo := r.repoWithTX(tx)
+
+	order, err := txRepo.getBaseOrderOnId(ctx, OrderUId)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting base order in repository:  %w", err)
+	}
+
+	items, err := txRepo.getItemsOnID(ctx, OrderUId)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting items in repository: %w", err)
+	}
+
+	delivery, err := txRepo.getDeliveryOnID(ctx, OrderUId)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting delivery in repository: %w", err)
+	}
+
+	payment, err := txRepo.getPaymentOnID(ctx, OrderUId)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting payment: %w", err)
+	}
+	order.Payment = *payment
+	order.Delivery = *delivery
+	order.Items = items
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("error transaction commit failed in repository - GetFullOrder: %w", err)
+	}
+
+	return order, nil
+
+}
+
+func (r *Repo) GetRecentIDs(ctx context.Context, amount uint64) ([]string, error) {
+	result := make([]string, 0, amount)
+	rows, err := r.executor().Query(ctx, queryIDs, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting IDs in repository: %w", err)
+		}
+		result = append(result, id)
+	}
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("error in repository GetRecentIDs: %w", rows.Err())
+	}
+	return result, nil
+}
+
 func (r *Repo) getBaseOrderOnId(ctx context.Context, OrderUId string) (*models.Order, error) {
 	var order models.Order
 	order.OrderUId = OrderUId
@@ -189,48 +296,6 @@ func (r *Repo) getItemsOnID(ctx context.Context, OrderUId string) ([]models.Item
 	return items, nil
 }
 
-func (r *Repo) GetFullOrderOnId(ctx context.Context, OrderUId string) (*models.Order, error) {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
-
-	txRepo := r.repoWithTX(tx)
-
-	order, err := txRepo.getBaseOrderOnId(ctx, OrderUId)
-	if err != nil {
-		return nil, fmt.Errorf("error while getting base order in repository:  %w", err)
-	}
-
-	items, err := txRepo.getItemsOnID(ctx, OrderUId)
-	if err != nil {
-		return nil, fmt.Errorf("error while getting items in repository: %w", err)
-	}
-
-	delivery, err := txRepo.getDeliveryOnID(ctx, OrderUId)
-	if err != nil {
-		return nil, fmt.Errorf("error while getting delivery in repository: %w", err)
-	}
-
-	payment, err := txRepo.getPaymentOnID(ctx, OrderUId)
-	if err != nil {
-		return nil, fmt.Errorf("error while getting payment: %w", err)
-	}
-	order.Payment = *payment
-	order.Delivery = *delivery
-	order.Items = items
-
-	if err = tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("error transaction commit failed in repository - GetFullOrder: %w", err)
-	}
-
-	return order, nil
-
-}
-
 func (r *Repo) createDelivery(ctx context.Context, delivery *models.Delivery) error {
 	_, err := r.executor().Exec(ctx, queryInsertDelivery, delivery.OrderUId, delivery.Name, delivery.Phone, delivery.Zip, delivery.City, delivery.Address, delivery.Region, delivery.Email)
 	if err != nil {
@@ -263,69 +328,4 @@ func (r *Repo) createBaseOrder(ctx context.Context, order *models.Order) (bool, 
 	return tag.RowsAffected() > 0, nil
 }
 
-func (r *Repo) CreateFullOrder(ctx context.Context, order *models.Order) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
-
-	// ненавижу JOIN :3
-	txRepo := r.repoWithTX(tx)
-	isNewOrder, err := txRepo.createBaseOrder(ctx, order)
-	if err != nil {
-		return fmt.Errorf("error while creating base order in repository: %w", err)
-	}
-	if !isNewOrder {
-		return nil
-	}
-
-	err = txRepo.createPayment(ctx, &order.Payment)
-	if err != nil {
-		return fmt.Errorf("error while creating payment in repository: %w", err)
-	}
-
-	err = txRepo.createDelivery(ctx, &order.Delivery)
-	if err != nil {
-		return fmt.Errorf("error while creating delivery in repository: %w", err)
-	}
-
-	for _, item := range order.Items {
-		err = txRepo.createItem(ctx, &item)
-		if err != nil {
-			return fmt.Errorf("error while creating item in repository: %w", err)
-		}
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("error transaction commit in repository - CreateFullOrder: %w", err)
-	}
-
-	return nil
-}
-
 const queryIDs = `SELECT o.order_uid FROM orders AS o  ORDER BY date_created DESC LIMIT $1`
-
-func (r *Repo) GetRecentIDs(ctx context.Context, amount uint64) ([]string, error) {
-	result := make([]string, 0, amount)
-	rows, err := r.executor().Query(ctx, queryIDs, amount)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		err = rows.Scan(&id)
-		if err != nil {
-			return nil, fmt.Errorf("error while getting IDs in repository: %w", err)
-		}
-		result = append(result, id)
-	}
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("error in repository GetRecentIDs: %w", rows.Err())
-	}
-	return result, nil
-}
