@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-var count = 10000
+var count = 1000
 
 type Producer struct {
 	client *kgo.Client

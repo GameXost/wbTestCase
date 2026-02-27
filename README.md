@@ -11,48 +11,22 @@
 - LRU cache (map + mutex)
 - HTTP (chi)
 
-### Структура:
-/cache:
-    cache.go
-```plaintext
-/cmd:
-    main.go
-    /producer
-        main.go  - продюсер кафки
 
-/config:
-    config.go
-
-./internal:
-    /errHandle
-        Errors.go
-        
-    /repository
-        repo_bruh.go
-
-    /server
-        server_bruh.go
-
-    /service
-        service_bruh.go
-
-/kafka:
-    consumer.go
-
-/models:
-    delivery.go
-    items.go
-    orders.go
-    payment.go
-
-/web:
-    index.html
+## Метрики
 ```
----
+"cache_hits_total"
+"cache_misses_total"
+
+"http_requests_total"
+"http_requests_success"
+"http_requests_NotFound"
+"http_bad_requests"
+"http_requests_serv_err"
+
+```
 
 ## Запуск
-
-- docker-compose up --build
+`docker-compose up --build`
 
 ### для тестирования кафки, можно запустить продюсер
     из корневой папки проекта выполнить
@@ -61,13 +35,26 @@
 
 ##### По базе HTTP API доступен на 
 `http://localhost:8080`
+
 ##### Еще прикручен UI для кафки
 `http://localhost:8090`
 
+##### Endpoint prometheus
+`http://localhost:8080/metrics`
+
+##### Графана
+`http://localhost:3000`
+
 ##### Для получения информации по заказу доступен:
 `GET /order/{order_uid}`
+
 ###### Также присутствует .env с переменными окружения, которые подтягиваются в main.go
 
+### Тесты:
+`go test ./...`
+
+### Линтер с конфигурацией
+`golangci-lint run ./...`
 
 #### P.S. работу кэша проверил
     2026/02/10 15:52:47 "GET http://localhost:8080/order/order_1770738456_14 HTTP/1.1" from 172.20.0.1:57210 - 200 988B in 2.850163ms

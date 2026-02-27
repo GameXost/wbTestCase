@@ -36,99 +36,71 @@ func main() {
 	defer cancel()
 
 	//bd pool
-	poolConf, err := pgxpool.ParseConfig(cfg.DB.DSN())
+	pool, err := initDB(ctx, cfg)
 	if err != nil {
-		log.Fatalf("failed to parse config, %v", err)
+		log.Fatalf("failed to init db: %v", err)
 	}
-	poolConf.MaxConns = int32(cfg.DB.PoolMaxConns)
-	poolConf.MinConns = int32(cfg.DB.PoolMinConns)
-	poolConf.MaxConnIdleTime = cfg.DB.PoolMaxIdleTime
-	poolConf.MaxConnLifetime = cfg.DB.PoolMaxLifeTime
-
-	pool, err := pgxpool.NewWithConfig(ctx, poolConf)
-	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
-	}
-
 	defer pool.Close()
 
-	if err = pool.Ping(ctx); err != nil {
-		log.Fatalf("failed to connect to postgres: %v", err)
-	}
-	log.Println("postgress good")
-
 	//services
-	orderRepo := repository.NewRepo(pool)
-	orderCache := cache.NewCache(cfg.Cache.Size)
-	orderService := service.NewService(orderRepo, orderCache)
-	orderServer := server.NewHandler(orderService)
-	log.Println("initialized all layers")
+	orderService, orderHandler := initLayers(pool, cfg)
 
-	if err = orderService.LoadCache(ctx, cfg.Cache.Size); err != nil {
+	//cache preload
+	if err := orderService.LoadCache(ctx, cfg.Cache.Size); err != nil {
 		log.Printf("failed to restore cache from db: %v", err)
 	} else {
 		log.Println("Cache loaded")
 	}
 
 	//kafka
-	consumer, err := kafka.NewConsumer(cfg.Kafka.Brokers, cfg.Kafka.Topic, cfg.Kafka.Group, orderService, cfg.Kafka.DLQTopic)
+	consumerErrs, err := startKafka(ctx, cfg, orderService)
 	if err != nil {
-		log.Fatalf("failed to create kafka consumer: %v", err)
+		log.Fatalf("failed to init kafka: %v", err)
 	}
-	consumerErrs := make(chan error, 1)
-	go func() {
-		log.Println("kafka consumer started")
-		consumerErrs <- consumer.Start(ctx)
-	}()
-
 	//prometheus
-	prometheus.MustRegister(
-		metrics.RequestsTotal,
-		metrics.RequestsServerError,
-		metrics.RequestsBadRequest,
-		metrics.RequestsNotFound,
-		metrics.CacheHits,
-		metrics.CacheMisses,
-		metrics.RequestsSuccess,
-	)
+	registerMetrics()
+
 	//router handlers
-	router := SetupRouter(orderServer)
+	router := SetupRouter(orderHandler)
 	httpServer := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
 		Handler: router,
 	}
 
-	// error handling
 	serverErrors := make(chan error, 1)
 	go func() {
 		log.Printf("HTTP port: %s", cfg.Server.Port)
 		serverErrors <- httpServer.ListenAndServe()
 	}()
 
+	//shutdown
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	select {
-	case err = <-consumerErrs:
+	case err := <-consumerErrs:
 		if err != nil && !errors.Is(err, context.Canceled) {
-			log.Fatalf("kafka died - critical error: %v", err)
+			log.Printf("kafka died - critical error: %v", err)
+			return
 		}
-	case err = <-serverErrors:
-		log.Fatalf("server error: %v", err)
+	case err := <-serverErrors:
+		log.Printf("server error: %v", err)
+		return
 	case sig := <-shutdown:
 		log.Printf("shitdown signal: %v", sig)
-		cancel()
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer shutdownCancel()
-
-		if err = httpServer.Shutdown(shutdownCtx); err != nil {
-			log.Printf("graceful shutdown failed: %v", err)
-			if errHttp := httpServer.Close(); errHttp != nil {
-				log.Printf("closing httpServer failed: %v", errHttp)
-			}
-		}
-		log.Println("server stopped gracefully")
 	}
+
+	cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutdownCancel()
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+		if errHttp := httpServer.Close(); errHttp != nil {
+			log.Printf("closing httpServer failed: %v", errHttp)
+		}
+	}
+	log.Println("server stopped gracefully")
 }
 
 func SetupRouter(handler *server.Handler) *chi.Mux {
@@ -152,4 +124,72 @@ func SetupRouter(handler *server.Handler) *chi.Mux {
 	r.Handle("/metrics", promhttp.Handler())
 
 	return r
+}
+
+func initDB(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
+	poolConf, err := pgxpool.ParseConfig(cfg.DB.DSN())
+	if err != nil {
+		return nil, err
+	}
+	poolConf.MaxConns = int32(cfg.DB.PoolMaxConns)
+	poolConf.MinConns = int32(cfg.DB.PoolMinConns)
+	poolConf.MaxConnIdleTime = cfg.DB.PoolMaxIdleTime
+	poolConf.MaxConnLifetime = cfg.DB.PoolMaxLifeTime
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConf)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+	log.Println("postgress good")
+	return pool, nil
+}
+
+func initLayers(pool *pgxpool.Pool, cfg *config.Config) (*service.Service, *server.Handler) {
+	orderRepo := repository.NewRepo(pool)
+	orderCache := cache.NewCache(cfg.Cache.Size)
+	orderService := service.NewService(orderRepo, orderCache)
+	orderHandler := server.NewHandler(orderService)
+	log.Println("initialized all layers")
+	return orderService, orderHandler
+}
+
+func startKafka(ctx context.Context, cfg *config.Config, srvs *service.Service) (<-chan error, error) {
+
+	consumer, err := kafka.NewConsumer(
+		cfg.Kafka.Brokers,
+		cfg.Kafka.Topic,
+		cfg.Kafka.Group,
+		srvs,
+		cfg.Kafka.DLQTopic,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	errChan := make(chan error, 1)
+
+	go func() {
+		log.Println("Kafka consumer started")
+		if err := consumer.Start(ctx); err != nil {
+			errChan <- err
+		}
+	}()
+
+	return errChan, nil
+}
+
+func registerMetrics() {
+	prometheus.MustRegister(
+		metrics.RequestsTotal,
+		metrics.RequestsServerError,
+		metrics.RequestsBadRequest,
+		metrics.RequestsNotFound,
+		metrics.CacheHits,
+		metrics.CacheMisses,
+		metrics.RequestsSuccess,
+	)
 }
