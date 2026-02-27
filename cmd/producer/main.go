@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GameXost/wbTestCase/internal/generator"
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"log"
 	"math/rand"

@@ -2,13 +2,11 @@ package service
 
 import (
 	"context"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/apperror"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/go-playground/validator/v10"
 	"log"
 )
-
-//const MAX_CAPACITY = uint64(10)
 
 type OrderRepo interface {
 	GetRecentIDs(ctx context.Context, amount uint64) ([]string, error)
@@ -37,7 +35,7 @@ func NewService(repo OrderRepo, cache OrderCache) *Service {
 func (s *Service) CreateOrder(ctx context.Context, order *models.Order) error {
 	if err := ValidateOrder(order); err != nil {
 		log.Printf("inalid order data: %v", err)
-		return errHandle.ErrValidation
+		return apperror.ErrValidation
 	}
 	err := s.repo.CreateFullOrder(ctx, order)
 	if err != nil {

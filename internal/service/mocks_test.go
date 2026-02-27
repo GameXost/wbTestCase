@@ -7,7 +7,7 @@ package service
 import (
 	"context"
 
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/models"
 	mock "github.com/stretchr/testify/mock"
 )
 

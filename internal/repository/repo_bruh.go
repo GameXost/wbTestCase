@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/apperror"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -112,7 +112,7 @@ func (r *Repo) getBaseOrderOnId(ctx context.Context, OrderUId string) (*models.O
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errHandle.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (r *Repo) getDeliveryOnID(ctx context.Context, OrderUId string) (*models.De
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errHandle.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (r *Repo) getPaymentOnID(ctx context.Context, OrderUId string) (*models.Pay
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errHandle.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, err
 	}

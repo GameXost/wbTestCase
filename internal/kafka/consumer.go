@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
+	"github.com/GameXost/wbTestCase/internal/apperror"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/GameXost/wbTestCase/internal/service"
-	"github.com/GameXost/wbTestCase/models"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"log"
 	"time"
@@ -105,7 +105,7 @@ func (c *Consumer) handleMessage(ctx context.Context, record *kgo.Record) error 
 
 	err = c.service.CreateOrder(ctx, &order)
 	if err != nil {
-		if errors.Is(err, errHandle.ErrValidation) {
+		if errors.Is(err, apperror.ErrValidation) {
 			c.sendToDLQ(ctx, record)
 			return nil
 		}

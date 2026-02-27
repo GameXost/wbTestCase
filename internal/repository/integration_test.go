@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
+	"github.com/GameXost/wbTestCase/internal/apperror"
 	"github.com/GameXost/wbTestCase/internal/generator"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -70,7 +70,6 @@ func TestCreateGetOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetFullOrderOnId failed: %v", err)
 	}
-
 	got.Payment.OrderId = order.OrderUId // эти айдишники есть в структурах, но я их не получаю из репозитория
 	got.Items[0].OrderUId = order.OrderUId
 
@@ -107,7 +106,7 @@ func TestIdempotentCreateOrder(t *testing.T) {
 func TestOrderNotFound(t *testing.T) {
 	ctx := context.Background()
 	_, err := repo.GetFullOrderOnId(ctx, "bruh")
-	if !errors.Is(err, errHandle.ErrNotFound) {
+	if !errors.Is(err, apperror.ErrNotFound) {
 		t.Fatalf("want ErrNotFound, got: %v", err)
 	}
 

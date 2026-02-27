@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"github.com/GameXost/wbTestCase/models"
-	"github.com/GameXost/wbTestCase/prometheus/metrics"
+	"github.com/GameXost/wbTestCase/internal/models"
+	"github.com/GameXost/wbTestCase/metrics"
 	"sync"
 )
 

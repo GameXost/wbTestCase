@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/brianvoe/gofakeit/v7"
 	"time"
 )

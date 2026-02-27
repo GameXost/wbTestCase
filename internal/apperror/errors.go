@@ -1,4 +1,4 @@
-package errHandle
+package apperror
 
 import "errors"
 
@@ -23,19 +23,13 @@ var (
 	ErrDeliveryRegionMissing     = errors.New("delivery region is missing")
 	ErrDeliveryEmailMissing      = errors.New("delivery email is missing")
 	ErrPaymentTransactionMissing = errors.New("payment transaction is missing")
-	ErrPaymentRequestMissing     = errors.New("payment request id is missing")
 	ErrPaymentCurrencyMissing    = errors.New("payment currency is missing")
-	ErrPaymentProviderMissing    = errors.New("payment provider is missing")
 	ErrPaymentAmountInvalid      = errors.New("payment amount is invalid")
-	ErrPaymentBankMissing        = errors.New("payment bank is missing")
 	ErrPaymentDeliveryInvalid    = errors.New("payment delivery cost is invalid, lower zero")
 	ErrPaymentGoodsTotalInvalid  = errors.New("payment goods total is invalid")
 	ErrItemsEmpty                = errors.New("items empty")
 	ErrItemNameMissing           = errors.New("name is missing")
 	ErrItemChrtMissing           = errors.New("chrt id is invalid")
-	ErrItemTrackNumberMissing    = errors.New("track number is missing")
-	ErrItemRIDMissing            = errors.New("RID is missing")
-	ErrItemNmIdInvalid           = errors.New("nm id is invalid")
 	ErrItemPriceInvalid          = errors.New("price is invalid")
 	ErrItemSaleInvalid           = errors.New("sale is invalid")
 	ErrItemTotalPriceInvalid     = errors.New("total price is invalid")

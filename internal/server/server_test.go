@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/GameXost/wbTestCase/internal/errHandle"
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/apperror"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -33,7 +33,7 @@ func TestHandlerGetOrderNotFound(t *testing.T) {
 	serv := NewMockOrderService(t)
 	handler := NewHandler(serv)
 
-	serv.EXPECT().GetOrder(mock.Anything, "test2").Return(nil, errHandle.ErrNotFound)
+	serv.EXPECT().GetOrder(mock.Anything, "test2").Return(nil, apperror.ErrNotFound)
 
 	r := chi.NewRouter()
 	r.Get("/orders/{order_uid}", handler.GetOrder)
@@ -49,7 +49,7 @@ func TestHandlerGetOrderServErr(t *testing.T) {
 	serv := NewMockOrderService(t)
 	handler := NewHandler(serv)
 
-	serv.EXPECT().GetOrder(mock.Anything, "test3").Return(nil, errHandle.ErrServer)
+	serv.EXPECT().GetOrder(mock.Anything, "test3").Return(nil, apperror.ErrServer)
 
 	r := chi.NewRouter()
 	r.Get("/orders/{order_uid}", handler.GetOrder)

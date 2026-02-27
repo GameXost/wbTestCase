@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
+	"github.com/GameXost/wbTestCase/internal/apperror"
 	"github.com/GameXost/wbTestCase/internal/generator"
-	"github.com/GameXost/wbTestCase/models"
+	"github.com/GameXost/wbTestCase/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -57,10 +57,10 @@ func TestGetOrderNothingFound(t *testing.T) {
 	serv := NewService(repo, cache)
 
 	cache.EXPECT().Get("test3").Return(nil, false)
-	repo.EXPECT().GetFullOrderOnId(mock.Anything, "test3").Return(nil, errHandle.ErrNotFound)
+	repo.EXPECT().GetFullOrderOnId(mock.Anything, "test3").Return(nil, apperror.ErrNotFound)
 
 	res, err := serv.GetOrder(context.Background(), "test3")
-	assert.ErrorIs(t, err, errHandle.ErrNotFound)
+	assert.ErrorIs(t, err, apperror.ErrNotFound)
 	assert.Nil(t, res)
 }
 
@@ -81,7 +81,7 @@ var cases = []struct {
 			ord.Items = []models.Item{}
 			return ord
 		}(),
-		want: errHandle.ErrItemsEmpty,
+		want: apperror.ErrItemsEmpty,
 	},
 	{
 		name: "no TrackNumber",
@@ -90,7 +90,7 @@ var cases = []struct {
 			ord.TrackNumber = ""
 			return ord
 		}(),
-		want: errHandle.ErrTrackNumberMissing,
+		want: apperror.ErrTrackNumberMissing,
 	},
 	{
 		name: "no OrderUId",
@@ -99,7 +99,7 @@ var cases = []struct {
 			ord.OrderUId = ""
 			return ord
 		}(),
-		want: errHandle.ErrOrderUIDMissing,
+		want: apperror.ErrOrderUIDMissing,
 	},
 	{
 		name: "no Entry",
@@ -108,7 +108,7 @@ var cases = []struct {
 			ord.Entry = ""
 			return ord
 		}(),
-		want: errHandle.ErrEntryMissing,
+		want: apperror.ErrEntryMissing,
 	},
 	{
 		name: "no Locale",
@@ -117,7 +117,7 @@ var cases = []struct {
 			ord.Locale = ""
 			return ord
 		}(),
-		want: errHandle.ErrLocaleMissing,
+		want: apperror.ErrLocaleMissing,
 	},
 	{
 		name: "no CustomerID",
@@ -126,7 +126,7 @@ var cases = []struct {
 			ord.CustomerId = ""
 			return ord
 		}(),
-		want: errHandle.ErrCustomerIDMissing,
+		want: apperror.ErrCustomerIDMissing,
 	},
 	{
 		name: "no DeliveryService",
@@ -135,7 +135,7 @@ var cases = []struct {
 			ord.DeliveryService = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryServiceMissing,
+		want: apperror.ErrDeliveryServiceMissing,
 	},
 	{
 		name: "no Shardkey",
@@ -144,7 +144,7 @@ var cases = []struct {
 			ord.Shardkey = ""
 			return ord
 		}(),
-		want: errHandle.ErrShardkeyMissing,
+		want: apperror.ErrShardkeyMissing,
 	},
 	{
 		name: "invalid SmId",
@@ -153,7 +153,7 @@ var cases = []struct {
 			ord.SmId = 0
 			return ord
 		}(),
-		want: errHandle.ErrInvalidSmID,
+		want: apperror.ErrInvalidSmID,
 	},
 	{
 		name: "no Delivery Name",
@@ -162,7 +162,7 @@ var cases = []struct {
 			ord.Delivery.Name = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryNameMissing,
+		want: apperror.ErrDeliveryNameMissing,
 	},
 	{
 		name: "no Delivery Phone",
@@ -171,7 +171,7 @@ var cases = []struct {
 			ord.Delivery.Phone = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryPhoneMissing,
+		want: apperror.ErrDeliveryPhoneMissing,
 	},
 	{
 		name: "no Delivery ZIP",
@@ -180,7 +180,7 @@ var cases = []struct {
 			ord.Delivery.Zip = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryZIPMissing,
+		want: apperror.ErrDeliveryZIPMissing,
 	},
 	{
 		name: "no Delivery City",
@@ -189,7 +189,7 @@ var cases = []struct {
 			ord.Delivery.City = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryCityMissing,
+		want: apperror.ErrDeliveryCityMissing,
 	},
 	{
 		name: "no Delivery Address",
@@ -198,7 +198,7 @@ var cases = []struct {
 			ord.Delivery.Address = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryAddressMissing,
+		want: apperror.ErrDeliveryAddressMissing,
 	},
 	{
 		name: "no Delivery Region",
@@ -207,7 +207,7 @@ var cases = []struct {
 			ord.Delivery.Region = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryRegionMissing,
+		want: apperror.ErrDeliveryRegionMissing,
 	},
 	{
 		name: "no Delivery Email",
@@ -216,7 +216,7 @@ var cases = []struct {
 			ord.Delivery.Email = ""
 			return ord
 		}(),
-		want: errHandle.ErrDeliveryEmailMissing,
+		want: apperror.ErrDeliveryEmailMissing,
 	},
 	{
 		name: "no Payment Transaction",
@@ -225,7 +225,7 @@ var cases = []struct {
 			ord.Payment.Transaction = ""
 			return ord
 		}(),
-		want: errHandle.ErrPaymentTransactionMissing,
+		want: apperror.ErrPaymentTransactionMissing,
 	},
 	{
 		name: "no Payment Currency",
@@ -234,7 +234,7 @@ var cases = []struct {
 			ord.Payment.Currency = ""
 			return ord
 		}(),
-		want: errHandle.ErrPaymentCurrencyMissing,
+		want: apperror.ErrPaymentCurrencyMissing,
 	},
 	{
 		name: "invalid Payment Amount",
@@ -243,7 +243,7 @@ var cases = []struct {
 			ord.Payment.Amount = 0
 			return ord
 		}(),
-		want: errHandle.ErrPaymentAmountInvalid,
+		want: apperror.ErrPaymentAmountInvalid,
 	},
 	{
 		name: "invalid Payment DeliveryCost",
@@ -252,7 +252,7 @@ var cases = []struct {
 			ord.Payment.DeliveryCost = -1
 			return ord
 		}(),
-		want: errHandle.ErrPaymentDeliveryInvalid,
+		want: apperror.ErrPaymentDeliveryInvalid,
 	},
 	{
 		name: "invalid Payment GoodsTotal",
@@ -261,7 +261,7 @@ var cases = []struct {
 			ord.Payment.GoodsTotal = 0
 			return ord
 		}(),
-		want: errHandle.ErrPaymentGoodsTotalInvalid,
+		want: apperror.ErrPaymentGoodsTotalInvalid,
 	},
 	{
 		name: "item name missing",
@@ -270,7 +270,7 @@ var cases = []struct {
 			ord.Items[0].Name = ""
 			return ord
 		}(),
-		want: errHandle.ErrItemNameMissing,
+		want: apperror.ErrItemNameMissing,
 	},
 	{
 		name: "item invalid ChrtId",
@@ -279,7 +279,7 @@ var cases = []struct {
 			ord.Items[0].ChrtId = 0
 			return ord
 		}(),
-		want: errHandle.ErrItemChrtMissing,
+		want: apperror.ErrItemChrtMissing,
 	},
 	{
 		name: "item invalid Price",
@@ -288,7 +288,7 @@ var cases = []struct {
 			ord.Items[0].Price = -1
 			return ord
 		}(),
-		want: errHandle.ErrItemPriceInvalid,
+		want: apperror.ErrItemPriceInvalid,
 	},
 	{
 		name: "item invalid Sale",
@@ -297,7 +297,7 @@ var cases = []struct {
 			ord.Items[0].Sale = -1
 			return ord
 		}(),
-		want: errHandle.ErrItemSaleInvalid,
+		want: apperror.ErrItemSaleInvalid,
 	},
 	{
 		name: "item invalid TotalPrice",
@@ -306,7 +306,7 @@ var cases = []struct {
 			ord.Items[0].TotalPrice = -1
 			return ord
 		}(),
-		want: errHandle.ErrItemTotalPriceInvalid,
+		want: apperror.ErrItemTotalPriceInvalid,
 	},
 	{
 		name: "item invalid Status",
@@ -315,6 +315,6 @@ var cases = []struct {
 			ord.Items[0].Status = -1
 			return ord
 		}(),
-		want: errHandle.ErrStatusCodeInvalid,
+		want: apperror.ErrStatusCodeInvalid,
 	},
 }

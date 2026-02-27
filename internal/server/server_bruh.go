@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/GameXost/wbTestCase/internal/errHandle"
-	"github.com/GameXost/wbTestCase/models"
-	"github.com/GameXost/wbTestCase/prometheus/metrics"
+	"github.com/GameXost/wbTestCase/internal/apperror"
+	"github.com/GameXost/wbTestCase/internal/models"
+	"github.com/GameXost/wbTestCase/metrics"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
@@ -29,7 +29,7 @@ func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 	orderUID := chi.URLParam(r, "order_uid")
 	if orderUID == "" {
-		handleHTTPErr(w, errHandle.ErrOrderUIDMissing)
+		handleHTTPErr(w, apperror.ErrOrderUIDMissing)
 		return
 	}
 	order, err := h.Service.GetOrder(r.Context(), orderUID)
@@ -48,10 +48,10 @@ func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 func handleHTTPErr(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, errHandle.ErrNotFound):
+	case errors.Is(err, apperror.ErrNotFound):
 		metrics.RequestsNotFound.Inc()
 		http.Error(w, "not found", http.StatusNotFound)
-	case errors.Is(err, errHandle.ErrOrderUIDMissing):
+	case errors.Is(err, apperror.ErrOrderUIDMissing):
 		metrics.RequestsBadRequest.Inc()
 		http.Error(w, "empty order_id", http.StatusBadRequest)
 	default:
